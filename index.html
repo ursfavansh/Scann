@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scan & Know — Food Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F1F0EA;
+    --paper:#FFFFFF;
+    --ink:#1C2321;
+    --ink-soft:#5B6360;
+    --line:#D8D5CB;
+    --food:#B9791F;
+    --food-light:#F5E8D3;
+    --a:#3C8558; --a-light:#E4F1E7;
+    --b:#8FA33E; --b-light:#EEF2DC;
+    --c:#D9A441; --c-light:#FBF0DA;
+    --d:#C1502E; --d-light:#F8E2D8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px; margin:0 auto; padding:0 0 3rem;}
+  header{padding:1.75rem 1.25rem 1rem;}
+  header h1{
+    font-family:'Fraunces', serif; font-weight:600; font-size:1.65rem;
+    margin:0 0 .2rem; letter-spacing:-0.01em;
+  }
+  header p{margin:0; color:var(--ink-soft); font-size:.9rem; line-height:1.5;}
+
+  section.panel{padding:1.25rem;}
+
+  .scanbox{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px;
+    padding:1.1rem; margin-bottom:1rem;
+  }
+  #reader{width:100%; border-radius:10px; overflow:hidden; margin-bottom:.8rem; min-height:0;}
+  #reader video{border-radius:10px;}
+  .scan-actions{display:flex; gap:.6rem;}
+  .btn{
+    border:none; border-radius:8px; padding:.7rem 1rem; font-weight:500;
+    font-size:.92rem; cursor:pointer; font-family:'IBM Plex Sans', sans-serif;
+  }
+  .btn-primary-food{background:var(--food); color:#fff;}
+  .btn-secondary{background:transparent; border:1px solid var(--line); color:var(--ink);}
+  .btn-full{width:100%;}
+
+  .manual-row{display:flex; gap:.5rem; margin-top:.9rem;}
+  .manual-row input{
+    flex:1; border:1px solid var(--line); border-radius:8px; padding:.6rem .7rem;
+    font-family:'IBM Plex Mono', monospace; font-size:.9rem; background:#fbfaf7;
+  }
+  .manual-row input:focus{outline:2px solid var(--food); outline-offset:1px;}
+  .hint{font-size:.78rem; color:var(--ink-soft); margin-top:.6rem; line-height:1.5;}
+
+  .cache-tools{display:flex;gap:.5rem;margin-top:.7rem;flex-wrap:wrap;}
+  .cache-tools .btn{font-size:.8rem;padding:.55rem .75rem;}
+  .status{font-size:.85rem; color:var(--ink-soft); padding:.4rem 0; min-height:1.4em;}
+  .status.err{color:var(--d);}
+
+  /* result card */
+  .result{background:var(--paper); border:1px solid var(--line); border-radius:14px; overflow:hidden;}
+  .result-head{padding:1.1rem 1.1rem .9rem; border-bottom:1px solid var(--line);}
+  .result-head .kicker{font-size:.78rem; color:var(--ink-soft); margin-bottom:.15rem;}
+  .result-head h2{font-family:'Fraunces', serif; font-weight:600; font-size:1.3rem; margin:0 0 .2rem;}
+  .result-head .sub{font-size:.85rem; color:var(--ink-soft);}
+  .result-body{padding:1rem 1.1rem 1.2rem;}
+  .field{display:flex; padding:.55rem 0; border-bottom:1px solid #EFEDE5; gap:1rem;}
+  .field:last-child{border-bottom:none;}
+  .field .label{flex:0 0 34%; font-size:.82rem; color:var(--ink-soft);}
+  .field .value{flex:1; font-size:.9rem; line-height:1.5;}
+
+  /* food grade */
+  .gradebar{display:flex; align-items:center; gap:1rem; padding:1.1rem; border-bottom:1px solid var(--line);}
+  .gradechip{
+    width:64px; height:64px; border-radius:14px; display:flex; align-items:center;
+    justify-content:center; font-family:'Fraunces', serif; font-weight:600; font-size:1.6rem;
+    flex-shrink:0;
+  }
+  .score10{font-family:'IBM Plex Mono', monospace; font-size:1.6rem; font-weight:500;}
+  .score10 span{font-size:.9rem; color:var(--ink-soft); font-family:'IBM Plex Sans', sans-serif;}
+  .breakdown{padding:0 1.1rem 1rem;}
+  .breakdown-row{display:flex; justify-content:space-between; font-size:.85rem; padding:.4rem 0; border-bottom:1px solid #EFEDE5;}
+  .breakdown-row:last-child{border-bottom:none;}
+  .breakdown-row .tag{color:var(--ink-soft);}
+  .breakdown-row .delta{font-family:'IBM Plex Mono', monospace;}
+  .delta.neg{color:var(--d);}
+  .delta.pos{color:var(--a);}
+  details{margin-top:.8rem;}
+  summary{cursor:pointer; font-size:.82rem; color:var(--ink-soft); padding:.3rem 0;}
+
+  .disclaimer{
+    font-size:.78rem; color:var(--ink-soft); line-height:1.6; padding:1rem 1.25rem 0;
+  }
+  .empty{padding:2.5rem 1.25rem; text-align:center; color:var(--ink-soft); font-size:.9rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Scan & know</h1>
+    <p>Point your camera at a packaged food's barcode to see how it grades — A+ down to D, out of 10.</p>
+  </header>
+
+  <section class="panel">
+    <div class="scanbox">
+      <div id="reader"></div><div class="hint">Camera scanning needs HTTPS (or localhost) and browser camera permission. Use the rear camera on your phone.</div>
+      <div class="scan-actions">
+        <button id="scan-btn" class="btn btn-primary-food btn-full">Start camera scan</button>
+      </div>
+      <div class="manual-row">
+        <input id="manual-code" type="text" placeholder="Or type a barcode number">
+        <button id="manual-btn" class="btn btn-secondary">Look up</button>
+      </div>
+      <div class="cache-tools">
+  <button id="save-product-btn" class="btn btn-secondary" type="button" disabled>Save this product</button>
+  <button id="missing-product-btn" class="btn btn-secondary" type="button" disabled>Report missing</button>
+</div>
+<div class="hint" id="api-status">
+  Sources are checked together: MyFitnessPal → Open Food Facts → UPCitemdb → USDA FoodData Central → your saved product cache. Nutrition fields are merged across sources.
+</div>
+<div class="status" id="status"></div>
+    </div>
+
+    <div id="result-panel">
+      <div class="empty">No item scanned yet. Start the camera or type a barcode above.</div>
+    </div>
+  </section>
+
+  <p class="disclaimer" id="disclaimer">
+    Food grades use a simplified nutrient formula based on available sugar, saturated fat, salt, energy, fibre, protein, and processing data per 100g. Sources are queried together and compatible nutrition fields are merged. If nutrition data is insufficient, no score is shown. This is not an official regulatory rating — always check the pack for full nutrition and allergen information.
+  </p>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+// ---------- food grading engine ----------
+function grade10ToLetter(score){
+  if(score >= 9) return {letter:"A+", cls:"a"};
+  if(score >= 8) return {letter:"A", cls:"a"};
+  if(score >= 7) return {letter:"A-", cls:"a"};
+  if(score >= 6) return {letter:"B+", cls:"b"};
+  if(score >= 5) return {letter:"B", cls:"b"};
+  if(score >= 4) return {letter:"B-", cls:"b"};
+  if(score >= 3) return {letter:"C+", cls:"c"};
+  if(score >= 2) return {letter:"C", cls:"c"};
+  if(score >= 1) return {letter:"C-", cls:"c"};
+  return {letter:"D", cls:"d"};
+}
+
+function computeFoodScore(n, novaGroup){
+  const rows = [];
+  let score = 10;
+  const sugars = n.sugars_100g;
+  const satfat = n["saturated-fat_100g"];
+  const salt = n.salt_100g != null ? n.salt_100g : (n.sodium_100g != null ? n.sodium_100g * 2.5 : undefined);
+  const energy = n["energy-kcal_100g"];
+  const fiber = n.fiber_100g;
+  const protein = n.proteins_100g;
+
+  function penalty(value, thresholds, label, unit){
+    if(value == null) return;
+    let d = 0;
+    if(value >= thresholds[1]) d = thresholds[2];
+    else if(value >= thresholds[0]) d = thresholds[2] * 0.5;
+    if(d > 0){
+      score -= d;
+      rows.push({tag:`High ${label} (${value.toFixed(1)}${unit}/100g)`, delta:-d});
+    } else {
+      rows.push({tag:`${label} in range (${value.toFixed(1)}${unit}/100g)`, delta:0});
+    }
+  }
+
+  penalty(sugars, [5, 22.5, 3], "sugar", "g");
+  penalty(satfat, [1.5, 5, 2], "saturated fat", "g");
+  penalty(salt, [0.3, 1.5, 2], "salt", "g");
+
+  if(energy != null){
+    if(energy >= 400){ score -= 1; rows.push({tag:`High energy density (${Math.round(energy)} kcal/100g)`, delta:-1}); }
+  }
+
+  if(novaGroup === 4){
+    score -= 1.5;
+    rows.push({tag:"Ultra-processed formulation (NOVA group 4)", delta:-1.5});
+  }
+
+  if(fiber != null && fiber >= 3){
+    score += 1;
+    rows.push({tag:`Good fibre (${fiber.toFixed(1)}g/100g)`, delta:+1});
+  }
+  if(protein != null && protein >= 5){
+    score += 0.5;
+    rows.push({tag:`Good protein (${protein.toFixed(1)}g/100g)`, delta:+0.5});
+  }
+
+  score = Math.max(0, Math.min(10, score));
+  return {score: Math.round(score * 10) / 10, rows};
+}
+
+// ---------- state / UI wiring ----------
+const scanBtn = document.getElementById("scan-btn");
+const manualBtn = document.getElementById("manual-btn");
+const statusEl = document.getElementById("status");
+const resultPanel = document.getElementById("result-panel");
+
+let html5QrCode = null;
+let scanning = false;
+
+scanBtn.addEventListener("click", async () => {
+  if(scanning){
+    await stopScan();
+    return;
+  }
+  statusEl.className = "status";
+  statusEl.textContent = "Requesting camera access…";
+  try{
+    if (!window.isSecureContext && location.hostname !== "localhost") {
+      throw new Error("Camera access requires HTTPS or localhost.");
+    }
+
+    html5QrCode = new Html5Qrcode("reader");
+    const cameras = await Html5Qrcode.getCameras();
+    if (!cameras || !cameras.length) {
+      throw new Error("No camera found.");
+    }
+
+    // Prefer the rear/environment camera when available.
+    const rear = cameras.find(c => /back|rear|environment/i.test(c.label));
+    const cameraConfig = rear ? { deviceId: { exact: rear.id } } : { facingMode: "environment" };
+
+    await html5QrCode.start(
+      cameraConfig,
+      { fps: 10, qrbox: { width: 260, height: 160 }, aspectRatio: 1.777778 },
+      (decodedText) => {
+        const code = decodedText.trim();
+        if (code) {
+          lookupFood(code);
+          stopScan();
+        }
+      },
+      () => {}
+    );
+    scanning = true;
+    scanBtn.textContent = "Stop camera";
+    statusEl.textContent = "Point the camera at the barcode.";
+  }catch(err){
+    statusEl.className = "status err";
+    statusEl.textContent = err?.message || "Could not access the camera. Allow camera permission and open this page over HTTPS.";
+  }
+});
+
+async function stopScan(){
+  if(html5QrCode && scanning){
+    try{ await html5QrCode.stop(); html5QrCode.clear(); }catch(e){}
+  }
+  scanning = false;
+  scanBtn.textContent = "Start camera scan";
+}
+
+manualBtn.addEventListener("click", () => {
+  const code = document.getElementById("manual-code").value.trim();
+  if(!code){ statusEl.className="status err"; statusEl.textContent="Enter a barcode number first."; return; }
+  lookupFood(code);
+});
+
+
+// ---------- local product cache / missing-product workflow ----------
+const PRODUCT_CACHE_KEY = "scanAndKnowProductsV1";
+const SUBMISSIONS_KEY = "scanAndKnowMissingProductsV1";
+let lastFoundProduct = null;
+let lastFoundBarcode = null;
+let lastFoundSource = null;
+
+const saveProductBtn = document.getElementById("save-product-btn");
+const missingProductBtn = document.getElementById("missing-product-btn");
+
+function readStore(key){
+  try { return JSON.parse(localStorage.getItem(key) || "{}"); }
+  catch (_) { return {}; }
+}
+
+function writeStore(key, value){
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch (_) {}
+}
+
+function normalizeBarcodeValue(barcode){
+  return String(barcode || "").replace(/\D/g, "");
+}
+
+function getCachedProduct(barcode){
+  const code = normalizeBarcodeValue(barcode);
+  if (!code) return null;
+  return readStore(PRODUCT_CACHE_KEY)[code] || null;
+}
+
+function saveProductToCache(barcode, product, source){
+  const code = normalizeBarcodeValue(barcode);
+  if (!code || !product) return;
+  const cache = readStore(PRODUCT_CACHE_KEY);
+  cache[code] = {
+    ...product,
+    _barcode: code,
+    _source: source || product._source || "unknown",
+    _savedAt: new Date().toISOString()
+  };
+  writeStore(PRODUCT_CACHE_KEY, cache);
+}
+
+function enableProductActions(){
+  if (saveProductBtn) saveProductBtn.disabled = !lastFoundProduct;
+  if (missingProductBtn) missingProductBtn.disabled = !lastFoundBarcode;
+}
+
+if (saveProductBtn) {
+  saveProductBtn.addEventListener("click", () => {
+    if (!lastFoundProduct || !lastFoundBarcode) return;
+    saveProductToCache(lastFoundBarcode, lastFoundProduct, lastFoundSource);
+    saveProductBtn.textContent = "Saved ✓";
+    setTimeout(() => saveProductBtn.textContent = "Save this product", 1500);
+  });
+}
+
+if (missingProductBtn) {
+  missingProductBtn.addEventListener("click", () => {
+    if (!lastFoundBarcode) return;
+    const submissions = readStore(SUBMISSIONS_KEY);
+    const code = normalizeBarcodeValue(lastFoundBarcode);
+    submissions[code] = {
+      barcode: code,
+      productName: lastFoundProduct?.product_name || "",
+      brand: lastFoundProduct?.brands || "",
+      submittedAt: new Date().toISOString()
+    };
+    writeStore(SUBMISSIONS_KEY, submissions);
+    missingProductBtn.textContent = "Reported ✓";
+    setTimeout(() => missingProductBtn.textContent = "Report missing", 1500);
+  });
+}
+
+async function lookupFood(barcode){
+  barcode = normalizeBarcodeValue(barcode);
+  if (!barcode) {
+    statusEl.className = "status err";
+    statusEl.textContent = "Invalid barcode.";
+    return;
+  }
+
+  lastFoundProduct = null;
+  lastFoundBarcode = barcode;
+  lastFoundSource = null;
+  enableProductActions();
+
+  statusEl.className = "status";
+  statusEl.textContent = `Checking all food databases for ${barcode}…`;
+
+  const sources = [
+    ["MyFitnessPal", lookupMyFitnessPal],
+    ["Open Food Facts", lookupOpenFoodFacts],
+    ["UPCitemdb", lookupUPCItemDB],
+    ["USDA FoodData Central", lookupUSDA]
+  ];
+
+  const results = await Promise.allSettled(
+    sources.map(async ([name, fn]) => ({ name, product: await fn(barcode) }))
+  );
+
+  const found = results
+    .filter(r => r.status === "fulfilled" && r.value && r.value.product)
+    .map(r => r.value);
+
+  if (!found.length) {
+    statusEl.className = "status err";
+    statusEl.textContent = "Barcode not found in the available databases. You can report this product.";
+    enableProductActions();
+    renderEmpty();
+    return;
+  }
+
+  // Merge all returned records instead of accepting the first shallow match.
+  const merged = mergeFoodRecords(found.map(x => x.product), barcode);
+  const sourceNames = found.map(x => x.name).join(" + ");
+
+  // Do NOT grade a product when there is no usable nutrition data.
+  const nutritionCount = countUsefulNutrition(merged.nutriments);
+  if (nutritionCount === 0) {
+    lastFoundProduct = merged;
+    lastFoundSource = sourceNames;
+    saveProductToCache(barcode, merged, sourceNames);
+
+    statusEl.className = "status err";
+    statusEl.textContent = `Product found (${sourceNames}), but nutrition data is missing.`;
+    renderFood(merged, barcode, sourceNames);
+    enableProductActions();
+    return;
+  }
+
+  lastFoundProduct = merged;
+  lastFoundSource = sourceNames;
+  saveProductToCache(barcode, merged, sourceNames);
+
+  statusEl.className = "status";
+  statusEl.textContent = `Nutrition merged from ${found.length} source${found.length === 1 ? "" : "s"}.`;
+  renderFood(merged, barcode, sourceNames);
+  enableProductActions();
+}
+
+function countUsefulNutrition(n){
+  if (!n) return 0;
+  const keys = [
+    "energy-kcal_100g",
+    "sugars_100g",
+    "saturated-fat_100g",
+    "salt_100g",
+    "sodium_100g",
+    "fiber_100g",
+    "proteins_100g",
+    "fat_100g",
+    "carbohydrates_100g"
+  ];
+  return keys.filter(k => Number.isFinite(Number(n[k]))).length;
+}
+
+function mergeFoodRecords(records, barcode){
+  const merged = {
+    product_name: "",
+    brands: "",
+    quantity: "",
+    ingredients_text: "",
+    nutriments: {},
+    nova_group: null,
+    image_url: "",
+    _barcode: barcode,
+    _sources: []
+  };
+
+  // Prefer records with the most nutrition fields, then fill remaining gaps.
+  const ordered = [...records].sort(
+    (a,b) => countUsefulNutrition(b.nutriments) - countUsefulNutrition(a.nutriments)
+  );
+
+  for (const p of ordered) {
+    if (!merged.product_name && (p.product_name || p.name || p.title))
+      merged.product_name = p.product_name || p.name || p.title;
+    if (!merged.brands && (p.brands || p.brand || p.brandName))
+      merged.brands = p.brands || p.brand || p.brandName;
+    if (!merged.quantity && (p.quantity || p.size))
+      merged.quantity = p.quantity || p.size;
+    if (!merged.ingredients_text && (p.ingredients_text || p.ingredients))
+      merged.ingredients_text = p.ingredients_text || p.ingredients;
+    if (merged.nova_group == null && p.nova_group != null)
+      merged.nova_group = p.nova_group;
+    if (!merged.image_url && (p.image_url || p.image_front_url))
+      merged.image_url = p.image_url || p.image_front_url;
+
+    const n = p.nutriments || {};
+    for (const [key, value] of Object.entries(n)) {
+      if (merged.nutriments[key] == null && Number.isFinite(Number(value))) {
+        merged.nutriments[key] = Number(value);
+      }
+    }
+
+    if (p._source) merged._sources.push(p._source);
+  }
+
+  return merged;
+}
+
+function renderEmpty(){
+  enableProductActions();
+  resultPanel.innerHTML = `<div class="empty">No item scanned yet. Start the camera or type a barcode above.</div>`;
+}
+
+function renderFood(p, barcode, sourceName){
+  const n = p.nutriments || {};
+  const nova = p.nova_group;
+  const enoughData = countUsefulNutrition(n) >= 2;
+  const grading = enoughData ? computeFoodScore(n, nova) : null;
+  const score = grading ? grading.score : null;
+  const rows = grading ? grading.rows : [];
+  const grade = score != null ? grade10ToLetter(score) : {letter:"—", cls:"c"};
+  const letter = grade.letter;
+  const cls = grade.cls;
+  const name = p.product_name || p.generic_name || "Unnamed product";
+  const brand = p.brands || "Unknown brand";
+  const quantity = p.quantity || "";
+  const ingredients = p.ingredients_text || "Ingredients not listed in the database.";
+
+  const rowsHtml = rows.map(r => `
+    <div class="breakdown-row">
+      <span class="tag">${r.tag}</span>
+      <span class="delta ${r.delta < 0 ? 'neg' : (r.delta > 0 ? 'pos' : '')}">${r.delta > 0 ? '+' : ''}${r.delta}</span>
+    </div>`).join("");
+
+  resultPanel.innerHTML = `
+    <div class="result">
+      <div class="result-head">
+        <div class="kicker">${sourceName ? sourceName + " · " : ""}${brand}${quantity ? " · " + quantity : ""}</div>
+        <h2>${name}</h2>
+        <div class="sub">Barcode ${barcode}</div>
+      </div>
+      <div class="gradebar">
+        <div class="gradechip ${cls}-light" style="background:var(--${cls}-light); color:var(--${cls});">${letter}</div>
+        <div class="score10">${score != null ? score : "N/A"}<span>${score != null ? " / 10" : " — insufficient nutrition data"}</span></div>
+      </div>
+      <div class="breakdown">
+        ${enoughData
+          ? (rowsHtml || '<div class="breakdown-row"><span class="tag">Nutrition data is available, but no scoring factors were triggered.</span></div>')
+          : '<div class="breakdown-row"><span class="tag">Product identified, but there is not enough verified nutrition data to calculate a score. No A+/10 score is shown.</span></div>'}
+        <details>
+          <summary>How this score is worked out</summary>
+          <div style="font-size:.82rem; color:var(--ink-soft); line-height:1.6;">
+            Starting from 10, points are deducted for high sugar, saturated fat, salt, energy density, and heavy processing (NOVA group 4), and added back for good fibre and protein content — all measured per 100g. The letter grade maps the 0–10 score onto a nine-step scale from D up to A+.
+          </div>
+        </details>
+      </div>
+      <div class="result-body" style="border-top:1px solid var(--line);">
+        <div class="field"><div class="label">Ingredients</div><div class="value">${ingredients}</div></div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>
